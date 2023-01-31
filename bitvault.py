@@ -12,7 +12,6 @@ if signup_prompt.lower() == "yes":
     new_pw = input("Please enter a password: ")
     user_list.append(new_un + " " + new_pw)
     with open(r'C:\Users\steve\Coding\PasswordManager\UserList.txt', 'a') as ul:
-        ul.write("\n")
         ul.write(str(user_list[0]))
         ul.close()
 
