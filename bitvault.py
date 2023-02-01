@@ -4,6 +4,7 @@ import nacl.utils
 import nacl.pwhash
 import base64
 import json
+import PySimpleGUI as sg # Added GUI library for further development
 import os
 print("Welcome to BitVault, the free, open-source, and secure password manager for everyone!")
 
