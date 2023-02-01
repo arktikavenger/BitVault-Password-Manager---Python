@@ -5,7 +5,7 @@ import nacl.pwhash
 import base64
 import json
 import os
-print("Welcome to BitVault, the simple and secure password manager for everyone!")
+print("Welcome to BitVault, the free, open-source, and secure password manager for everyone!")
 
 
 signup_prompt = input("Is it your first time using BitVault? ")
@@ -75,7 +75,7 @@ if signup_prompt.lower()[0] == "n":
             else:
                 print("Incorrect password")
         else:
-            print("Username does not exist")
+            print("User does not exist")
     else:
         print("Maximum login attempts exceeded")
         quit()
