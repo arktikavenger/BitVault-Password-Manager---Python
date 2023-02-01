@@ -3,38 +3,73 @@ import nacl.secret
 import nacl.utils
 import nacl.pwhash
 import base64
+import json
 
 print("Welcome to BitVault, the simple and secure password manager for everyone!")
 
 
 signup_prompt = input("Is it your first time using BitVault? ")
 
-if signup_prompt.lower() == "yes":
-    user_list = []
+
+def get_userlist():
+    with open('userlist.json', 'rt') as f:
+        return json.load(f)
+
+
+def check_userlist(username):
+    userfile = get_userlist()
+    if username in userfile.keys():
+        return True
+    else:
+        return False
+
+
+def check_password(username, password):
+    userfile = get_userlist()
+    if check_userlist(username):
+        if userfile[username] == password:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+
+def update_userlist(username, password):
+    userfile = get_userlist()
+    if check_userlist(username):
+        return False
+    else:
+        userfile += {username: password}
+        with open('userlist.json', 'wt') as f:
+            json.dump(userfile, f)
+        return True
+
+
+if signup_prompt.lower()[0] == "y":
     new_un = input("Please enter a username: ")
     new_pw = input("Please enter a password: ")
-    user_list.append(new_un + " " + new_pw)
-    with open(r'UserList.txt', 'a') as ul:  
-        ul.write(str(user_list[0]))
-        pass
+    if update_userlist(new_un, new_pw):
+        print("Username added!")
+    else:
+        print("Username already exists!")
 
-if signup_prompt.lower() == "no":
-    k = 1
-    while k < 2:
-            user_list2 = []
-            user = input("Please enter your username: ")
-            pass_ = input("Please enter your password: ")
-            user_list2.append([user, pass_])
-            a = open(r'.\UserList.txt', 'r')
-            ultext = a.read()
-            
-            if user and pass_ in ultext:
-                print("Logging in...")
-                p = pass_
+if signup_prompt.lower()[0] == "n":
+    for i in range(0, 3):
+        un = input("Please enter your username: ")
+        pw = input("Please enter your password: ")
+        if check_userlist(un):
+            if check_password(un, pw):
+                print("Login successful...")
+                p = pw
                 break
-                k += 1
-            if user or pass_ not in ultext:
-                print("Username or Password incorrect. Please try again.")
+            else:
+                print("Incorrect password")
+        else:
+            print("Username does not exist")
+    else:
+        print("Maximum login attempts exceeded")
+        quit()
 
 
 use = input("Would you like to add a password or retrieve a password? " )
