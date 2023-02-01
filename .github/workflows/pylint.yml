@@ -1,3 +1,6 @@
+#### This is Python's Code Checking Software
+## To check errors within lines of code...refer to the build errors to further investigate ##
+
 name: Pylint
 
 on: [push]
