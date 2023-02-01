@@ -4,12 +4,21 @@ import nacl.utils
 import nacl.pwhash
 import base64
 import json
-
+import os
 print("Welcome to BitVault, the simple and secure password manager for everyone!")
 
 
 signup_prompt = input("Is it your first time using BitVault? ")
 
+def create_userList():
+    if os.path.exists('userlist.json'):
+        return
+    else:
+        with open('userlist.json', 'w') as fc:
+            json.dump({}, fc)
+            return
+
+create_userList()
 
 def get_userlist():
     with open('userlist.json', 'rt') as f:
@@ -40,7 +49,7 @@ def update_userlist(username, password):
     if check_userlist(username):
         return False
     else:
-        userfile += {username: password}
+        userfile[username] = password
         with open('userlist.json', 'wt') as f:
             json.dump(userfile, f)
         return True
@@ -109,7 +118,7 @@ if use.lower() == "retrieve a password":
 
 
 
-
+'''
 password = b"I like Python"
 secret_msg = b"Actually, I prefer Javascript..."
 
@@ -132,4 +141,4 @@ with open('file.bin', 'wb') as f:
 with open('file.txt', 'w') as f:
   content = base64.b64encode(encrypted).decode("ascii")
 f.write(content)
-
+'''
