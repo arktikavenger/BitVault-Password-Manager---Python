@@ -2,6 +2,7 @@
 import nacl.secret
 import nacl.utils
 import nacl.pwhash
+import nacl.hashlib
 import base64
 import json
 import PySimpleGUI as sg # Added GUI library for further development
