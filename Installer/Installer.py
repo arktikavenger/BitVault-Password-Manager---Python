@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import QApplication, QLabel, QWidget
 import sys
 import os
+import subprocess
 import re
 import socket
 import shutil
