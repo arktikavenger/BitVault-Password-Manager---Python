@@ -1,15 +1,20 @@
 # TODO: Password generator
-import nacl.secret
-import nacl.utils
-import nacl.pwhash
-import base64
+# import nacl.secret
+#import nacl.utils
+# import nacl.pwhash
+#import nacl.hashlib
+# import base64
 import json
-import PySimpleGUI as sg # Added GUI library for further development
+# import PySimpleGUI as sg  # Added GUI library for further development
 import os
+
+### The libraries hashed out above are not working or broken and should not be used unitl the encryption
+### file is complete or in alpha 0.0.2
+
 print("Welcome to BitVault, the free, open-source, and secure password manager for everyone!")
 
-
 signup_prompt = input("Is it your first time using BitVault? ")
+
 
 def create_userList():
     if os.path.exists('userlist.json'):
@@ -19,7 +24,9 @@ def create_userList():
             json.dump({}, fc)
             return
 
+
 create_userList()
+
 
 def get_userlist():
     with open('userlist.json', 'rt') as f:
@@ -81,8 +88,7 @@ if signup_prompt.lower()[0] == "n":
         print("Maximum login attempts exceeded")
         quit()
 
-
-use = input("Would you like to add a password or retrieve a password? " )
+use = input("Would you like to add a password or retrieve a password? ")
 
 if use.lower() == "add a password":
     print("Type 'quit' and click enter on the first question to end the process.")
@@ -96,28 +102,24 @@ if use.lower() == "add a password":
         if accType.lower() == "quit":
             break
             i += 1
-        un = input("Enter your username: " )
-        pw = input("Enter your password: " )
+        un = input("Enter your username: ")
+        pw = input("Enter your password: ")
         pwList.append([accType, un, pw])
-
 
     with open(r'C:\Users\steve\Coding\PasswordManager\PWList.txt', 'a') as fp:
         for list in pwList:
             fp.write(str(pwList[0]) + "\n")
             fp.close()
 
-#in progress
+# in progress
 if use.lower() == "retrieve a password":
     access = input("Please enter your master password to access passwords: ")
     if access != p:
         print("Access Denied.")
         quit()
-    else: 
+    else:
         print("Access Granted!")
     retrieve = input("Would you like to access all passwords or a specific password?")
-
-
-
 
 '''
 password = b"I like Python"
