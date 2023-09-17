@@ -1,147 +1,166 @@
-# TODO: Password generator
-# import nacl.secret
-#import nacl.utils
-# import nacl.pwhash
-#import nacl.hashlib
-# import base64
-import json
-# import PySimpleGUI as sg  # Added GUI library for further development
 import os
+import shutil
+import datetime
+import nacl.pwhash
+import nacl.utils
+from pysqlcipher3 import dbapi2 as sqlite
 
-### The libraries hashed out above are not working or broken and should not be used unitl the encryption
-### file is complete or in alpha 0.0.2
-
-print("Welcome to BitVault, the free, open-source, and secure password manager for everyone!")
-
-signup_prompt = input("Is it your first time using BitVault? ")
-
-
-def create_userList():
-    if os.path.exists('userlist.json'):
-        return
-    else:
-        with open('userlist.json', 'w') as fc:
-            json.dump({}, fc)
-            return
+DATABASE_NAME = 'password_manager.db'
+DATABASE_PASSPHRASE = 'secure_passphrase'
+BACKUP_DIRECTORY = 'backups/'
 
 
-create_userList()
+class PasswordManagerError(Exception):
+    pass
 
 
-def get_userlist():
-    with open('userlist.json', 'rt') as f:
-        return json.load(f)
+class PasswordManager:
+    def __init__(self):
+        self.conn = self._connect_db()
+        self._create_tables()
 
+    def _connect_db(self):
+        conn = sqlite.connect(DATABASE_NAME)
+        conn.execute(f"PRAGMA key = '{DATABASE_PASSPHRASE}'")
+        return conn
 
-def check_userlist(username):
-    userfile = get_userlist()
-    if username in userfile.keys():
-        return True
-    else:
-        return False
+    def _create_tables(self):
+        with self.conn:
+            self.conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                username TEXT PRIMARY KEY,
+                hashed_password TEXT NOT NULL
+            )
+            ''')
 
+    def add_password(self, username, password):
+        if self._get_hashed_password(username):
+            raise PasswordManagerError("Error processing request.")
+        
+        salt = nacl.utils.random(nacl.pwhash.argon2i.SALTBYTES)
+        hashed_pw = nacl.pwhash.argon2i.str(password.encode('utf-8'), salt)
+        
+        with self.conn:
+            self.conn.execute("INSERT INTO users (username, hashed_password) VALUES (?, ?)", (username, hashed_pw))
 
-def check_password(username, password):
-    userfile = get_userlist()
-    if check_userlist(username):
-        if userfile[username] == password:
+    def verify_password(self, username, password):
+        hashed_pw = self._get_hashed_password(username)
+        if not hashed_pw:
+            raise PasswordManagerError("Error processing request.")
+        
+        try:
+            nacl.pwhash.verify(hashed_pw, password.encode('utf-8'))
             return True
-        else:
+        except nacl.exceptions.CryptoError:
             return False
-    else:
-        return False
+
+    def change_password(self, username, old_password, new_password):
+        if not self.verify_password(username, old_password):
+            raise PasswordManagerError("Error processing request.")
+        
+        salt = nacl.utils.random(nacl.pwhash.argon2i.SALTBYTES)
+        hashed_pw = nacl.pwhash.argon2i.str(new_password.encode('utf-8'), salt)
+        
+        with self.conn:
+            self.conn.execute("UPDATE users SET hashed_password = ? WHERE username = ?", (hashed_pw, username))
+
+    def delete_account(self, username, password):
+        if not self.verify_password(username, password):
+            raise PasswordManagerError("Error processing request.")
+        
+        with self.conn:
+            self.conn.execute("DELETE FROM users WHERE username = ?", (username,))
+
+    def _get_hashed_password(self, username):
+        cursor = self.conn.execute("SELECT hashed_password FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+    def backup_database(self):
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"{BACKUP_DIRECTORY}backup_{timestamp}.db"
+        
+        if not os.path.exists(BACKUP_DIRECTORY):
+            os.makedirs(BACKUP_DIRECTORY)
+        
+        shutil.copy2(DATABASE_NAME, backup_filename)
+        print(f"Backup created at {backup_filename}!")
+
+    def restore_database(self, backup_path):
+        if not os.path.exists(backup_path):
+            raise PasswordManagerError("Backup file does not exist!")
+        
+        shutil.copy2(backup_path, DATABASE_NAME)
+        print("Database restored from backup!")
 
 
-def update_userlist(username, password):
-    userfile = get_userlist()
-    if check_userlist(username):
-        return False
-    else:
-        userfile[username] = password
-        with open('userlist.json', 'wt') as f:
-            json.dump(userfile, f)
-        return True
+def main():
+    pm = PasswordManager()
 
+    while True:
+        print("\nBitVault Password Manager Beta")
+        print("1. Add Password")
+        print("2. Verify Password")
+        print("3. Change Password")
+        print("4. Delete Account")
+        print("5. Backup Database")
+        print("6. Restore Database")
+        print("7. Exit")
+        choice = input("Enter your choice: ")
 
-if signup_prompt.lower()[0] == "y":
-    new_un = input("Please enter a username: ")
-    new_pw = input("Please enter a password: ")
-    if update_userlist(new_un, new_pw):
-        print("Username added!")
-    else:
-        print("Username already exists!")
+        if choice == "1":
+            username = input("Enter username: ")
+            password = input("Enter password: ")
+            try:
+                pm.add_password(username, password)
+                print("Password added successfully!")
+            except PasswordManagerError:
+                print("Error processing request.")
 
-if signup_prompt.lower()[0] == "n":
-    for i in range(0, 3):
-        un = input("Please enter your username: ")
-        pw = input("Please enter your password: ")
-        if check_userlist(un):
-            if check_password(un, pw):
-                print("Login successful...")
-                p = pw
-                break
+        elif choice == "2":
+            username = input("Enter username: ")
+            password = input("Enter password: ")
+            if pm.verify_password(username, password):
+                print("Password is correct!")
             else:
-                print("Incorrect password")
-        else:
-            print("User does not exist")
-    else:
-        print("Maximum login attempts exceeded")
-        quit()
+                print("Password is incorrect!")
 
-use = input("Would you like to add a password or retrieve a password? ")
+        elif choice == "3":
+            username = input("Enter username: ")
+            old_password = input("Enter old password: ")
+            new_password = input("Enter new password: ")
+            try:
+                pm.change_password(username, old_password, new_password)
+                print("Password changed successfully!")
+            except PasswordManagerError:
+                print("Error processing request.")
 
-if use.lower() == "add a password":
-    print("Type 'quit' and click enter on the first question to end the process.")
+        elif choice == "4":
+            username = input("Enter username: ")
+            password = input("Enter password: ")
+            try:
+                pm.delete_account(username, password)
+                print("Account deleted successfully!")
+            except PasswordManagerError:
+                print("Error processing request.")
 
-    pwList = [
-    ]
+        elif choice == "5":
+            pm.backup_database()
 
-    i = 1
-    while i < 2:
-        accType = input("What is the name of the application? ")
-        if accType.lower() == "quit":
+        elif choice == "6":
+            backup_path = input("Enter the path to the backup file: ")
+            try:
+                pm.restore_database(backup_path)
+            except PasswordManagerError as e:
+                print(e)
+
+        elif choice == "7":
+            print("Goodbye!")
             break
-            i += 1
-        un = input("Enter your username: ")
-        pw = input("Enter your password: ")
-        pwList.append([accType, un, pw])
 
-    with open(r'C:\Users\steve\Coding\PasswordManager\PWList.txt', 'a') as fp:
-        for list in pwList:
-            fp.write(str(pwList[0]) + "\n")
-            fp.close()
+        else:
+            print("Invalid choice!")
 
-# in progress
-if use.lower() == "retrieve a password":
-    access = input("Please enter your master password to access passwords: ")
-    if access != p:
-        print("Access Denied.")
-        quit()
-    else:
-        print("Access Granted!")
-    retrieve = input("Would you like to access all passwords or a specific password?")
 
-'''
-password = b"I like Python"
-secret_msg = b"Actually, I prefer Javascript..."
-
-# Generate the key:
-kdf = nacl.pwhash.argon2i.kdf # our key derivation function
-salt_size = nacl.pwhash.argon2i.SALTBYTES # The salt musts have a size of 16 bytes
-salt = nacl.utils.random(salt_size) # can be sth like: b'3\xba\x8f\r]\x1c\xcbOsU\x12\xb6\x9c(\xcb\x94'
-print(salt) # To decrypt the data later, you have to save this salt somewhere.
-key = kdf(nacl.secret.SecretBox.KEY_SIZE, password, salt)
-
-# Encrypt the data:
-box = nacl.secret.SecretBox(key)
-encrypted = box.encrypt(secret_msg)
-
-# Store the data with binary mode:
-with open('file.bin', 'wb') as f:
-  f.write(encrypted)
-
-# Store the data with text mode:
-with open('file.txt', 'w') as f:
-  content = base64.b64encode(encrypted).decode("ascii")
-f.write(content)
-'''
+if __name__ == "__main__":
+    main()
